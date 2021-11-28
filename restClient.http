@@ -1,0 +1,29 @@
+### Topics
+
+GET http://localhost:8080/topics HTTP/1.1
+
+### Elements
+
+GET http://localhost:8080/elements/id1 HTTP/1.1
+
+###
+
+POST http://localhost:8080/elements/id2 HTTP/1.1
+content-type: application/json
+
+{
+    "data": "sample1"
+}
+
+### Entries
+
+GET http://localhost:8080/entries/id3 HTTP/1.1
+
+###
+
+POST http://localhost:8080/entries/id3 HTTP/1.1
+content-type: application/json
+
+{
+    "data": "sample2"
+}
