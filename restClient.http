@@ -8,11 +8,11 @@ GET http://localhost:8080/elements/meals_elements HTTP/1.1
 
 ###
 
-POST http://localhost:8080/elements/id2 HTTP/1.1
+POST http://localhost:8080/elements/meals_elements HTTP/1.1
 content-type: application/json
 
 {
-    "data": "sample1"
+    "data": [{"name": "rice"},{"name": "egg"},{"name": "cucumber"}]
 }
 
 ### Entries

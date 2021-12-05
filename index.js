@@ -1,25 +1,38 @@
 const express = require('express')
 const { google } = require('googleapis')
+const { v4: uuid } = require('uuid')
 
 const app = express()
 
 app.use(express.json())
 
-const getSheets = async () => {
+const readSheet = async (range) => {
   const auth = await google.auth.getClient({
     scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
   })
 
-  const sheets = google.sheets({ version: 'v4', auth })
+  const sheetsService = google.sheets({ version: 'v4', auth })
 
-  return sheets
-}
-
-const readSheet = async (range) => {
-  const sheets = await getSheets()
-  const sheetsRes = await sheets.spreadsheets.values.get({
+  const sheetsRes = await sheetsService.spreadsheets.values.get({
     spreadsheetId: process.env.SHEET_ID,
     range,
+  })
+
+  return sheetsRes
+}
+
+const appendData = async (range, values) => {
+  const auth = await google.auth.getClient({
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  })
+
+  const sheetsService = google.sheets({ version: 'v4', auth })
+
+  const sheetsRes = await sheetsService.spreadsheets.values.append({
+    spreadsheetId: process.env.SHEET_ID,
+    range,
+    valueInputOption: 'RAW',
+    resource: { values },
   })
 
   return sheetsRes
@@ -31,6 +44,13 @@ const getRowData = (arr) =>
     const rowData = cur.reduce((accu, curr, idx) => ({ ...accu, [arr[0][idx]]: curr }), {})
     return [...acc, rowData]
   }, [])
+
+const getElementsValues = (data) => {
+  if (Array.isArray(data)) {
+    return data.map(({ name }) => [uuid(), name, new Date(), new Date()])
+  }
+  return [[uuid(), data.name, new Date(), new Date()]]
+}
 
 // fetch topics with their metadata
 app.get('/topics', async (_req, res) => {
@@ -62,8 +82,20 @@ app.get('/elements/:elements_list_id', async (req, res) => {
 
 // save new element
 app.post('/elements/:elements_list_id', async (req, res) => {
-  console.log('> ~ req', req)
-  res.status(200).send(`WIP, ${req.params.elements_list_id}, ${req.body.data}`)
+  try {
+    const values = getElementsValues(req.body.data)
+
+    const sheetsRes = await appendData(
+      `${req.params.elements_list_id}!A1:${process.env.ELEMENTS_LAST_COL}`,
+      values
+    )
+
+    const { updatedRows, updatedColumns, updatedCells } = sheetsRes.data.updates
+
+    res.status(200).send({ data: { updatedRows, updatedColumns, updatedCells } })
+  } catch (e) {
+    res.status(e.code).send({ data: e.response.data.error })
+  }
 })
 
 // fetch topic entries list
