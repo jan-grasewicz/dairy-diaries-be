@@ -45,12 +45,27 @@ const getRowData = (arr) =>
     return [...acc, rowData]
   }, [])
 
+const getElementRow = (name, lastUsedAt = new Date(), createdAt = new Date(), id = uuid()) => [
+  id,
+  name,
+  createdAt,
+  lastUsedAt,
+]
+
 const getElementsValues = (data) => {
   if (Array.isArray(data)) {
-    return data.map(({ name }) => [uuid(), name, new Date(), new Date()])
+    return data.map(({ name }) => getElementRow(name))
   }
-  return [[uuid(), data.name, new Date(), new Date()]]
+  return [getElementRow(data.name)]
 }
+
+const getEntryRow = (elements, date, note = '', createdAt = new Date(), id = uuid()) => [
+  id,
+  createdAt,
+  date,
+  note,
+  JSON.stringify(elements),
+]
 
 // fetch topics with their metadata
 app.get('/topics', async (_req, res) => {
@@ -115,7 +130,51 @@ app.get('/entries/:entries_list_id', async (req, res) => {
 
 // save new entry
 app.post('/entries/:entries_list_id', async (req, res) => {
-  res.status(200).send(`WIP, ${req.params.entries_list_id}, ${req.body.data}`)
+  try {
+    const newElements = req.body.data.elements.filter(({ create }) => create)
+    // if (!newElements.length) {
+    //   // TODO simplified requests
+    // }
+
+    const newElementsValues = getElementsValues(newElements)
+    // save new elements
+    const elementsListId = req.params.elements_list_id || 'meals_elements' // TODO don't have elements_list_id
+    const elemetntsSheetsRes = await appendData(
+      `${elementsListId}!A1:${process.env.ELEMENTS_LAST_COL}`,
+      newElementsValues
+    )
+    // console.log('> ~ elemetntsSheetsRes', elemetntsSheetsRes)
+
+    const { note, date, elements } = req.body.data
+
+    const getEntryElements = (elements) => {
+      if (newElements.length) {
+        return elements.map((element) => {
+          if (!element.create) return element
+
+          const id = newElementsValues.find(([_id, name]) => name === element.name)[0]
+          return { name: element.name, id }
+        })
+      }
+      return elements
+    }
+
+    const newEntry = [getEntryRow(getEntryElements(elements), date, note)]
+
+    // save new entry
+    const entiresSheetsRes = await appendData(
+      `${req.params.entries_list_id}!A1:${process.env.ENTRIES_LAST_COL}`,
+      newEntry
+    )
+
+    // TODO (improvement) update existing elements 'last_used_at'
+
+    const { updatedRows, updatedColumns, updatedCells } = entiresSheetsRes.data.updates
+
+    res.status(200).send({ data: { updatedRows, updatedColumns, updatedCells } })
+  } catch (e) {
+    res.status(e.code).send({ data: e.response.data.error })
+  }
 })
 
 app.listen(process.env.PORT, () => console.log(`live on port: ${process.env.PORT}`))

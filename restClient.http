@@ -21,9 +21,13 @@ GET http://localhost:8080/entries/meals_entries HTTP/1.1
 
 ###
 
-POST http://localhost:8080/entries/id3 HTTP/1.1
+POST http://localhost:8080/entries/meals_entries HTTP/1.1
 content-type: application/json
 
 {
-    "data": "sample2"
+    "data": {
+        "elements": [{"name":"rice","id":"xyz"},{"name":"soy sauce","create":true}],
+        "note": "note content",
+        "date": "2021-12-12T13:26:07.016Z"
+    }
 }
